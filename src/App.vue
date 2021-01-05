@@ -29,3 +29,8 @@ export default {
   }),
 };
 </script>
+<style lang="scss">
+.fill-width {
+  width: 100% !important;
+}
+</style>
