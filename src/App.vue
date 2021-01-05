@@ -1,15 +1,17 @@
 <template>
   <v-app>
     <v-main>
-      <v-container>
-        
-      <settings-form />
-      <stereogram />
+      <v-container fluid>
+        <v-row justify="center">
+          <v-col cols="10">
+            <settings-form />
+            <stereogram />
+          </v-col>
+        </v-row>
       </v-container>
     </v-main>
   </v-app>
 </template>
-
 <script>
 import Stereogram from './components/Stereogram';
 import SettingsForm from './components/SettingsForm';
