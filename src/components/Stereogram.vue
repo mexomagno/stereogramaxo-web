@@ -42,13 +42,11 @@ export default {
     }
   },
   mounted() {
-    this.$nextTick().then(() => {
-      this.context = this.$refs.canvas.getContext('2d')
-      this.debugCanvas = this.$refs.debugCanvas.getContext('2d')
-      // this.drawAnimatedNoise(10)
-      this.drawNoise()
-      this.drawDebug(this.depthMap)
-    })
+    // this.$nextTick().then(() => {
+    //   this.context = this.$refs.canvas.getContext('2d')
+    //   this.debugCanvas = this.$refs.debugCanvas.getContext('2d')
+    //   // this.drawAnimatedNoise(10)
+    // })
   },
   computed: {
     depthMap() {
@@ -61,35 +59,43 @@ export default {
       return this.depthMap?.height ?? DEFAULT_SIZE.height
     },
   },
-  methods: {
+  methods: { 
     // Testing
     drawDebug(image) {
+      if (!image) return
       console.log("Draw debug image: ", image)
-      if (image) this.debugCanvas.drawImage(image)
+      this.$nextTick().then(() => {
+        const ctx = this.$refs.debugCanvas.getContext('2d')
+        ctx.drawImage(image, 0, 0)
+      })
     },
     drawNoise(amount = 100000) {
-      t0 = Date.now()
-      this.context.clearRect(0, 0, this.width, this.height)
+      this.$nextTick().then(() => {
+        const ctx = this.$refs.canvas.getContext('2d')
 
-      var id = this.context.getImageData(0, 0, this.width, this.height);
-      var pixels = id.data;
+        t0 = Date.now()
+        ctx.clearRect(0, 0, this.width, this.height)
 
-      var t0 = new Date().getTime();
+        var id = ctx.getImageData(0, 0, this.width, this.height);
+        var pixels = id.data;
 
-      for (var i = 0; i < amount; ++i) {
-        var x = Math.floor(Math.random() * this.width);
-        var y = Math.floor(Math.random() * this.height);
-        var r = Math.floor(Math.random() * 256);
-        var g = Math.floor(Math.random() * 256);
-        var b = Math.floor(Math.random() * 256);
-        var off = (y * id.width + x) * 4;
-        pixels[off] = r;
-        pixels[off + 1] = g;
-        pixels[off + 2] = b;
-        pixels[off + 3] = 255;
-      }
-      this.context.putImageData(id, 0, 0);
-      this.dt = Date.now() - t0
+        var t0 = new Date().getTime();
+
+        for (var i = 0; i < amount; ++i) {
+          var x = Math.floor(Math.random() * this.width);
+          var y = Math.floor(Math.random() * this.height);
+          var r = Math.floor(Math.random() * 256);
+          var g = Math.floor(Math.random() * 256);
+          var b = Math.floor(Math.random() * 256);
+          var off = (y * id.width + x) * 4;
+          pixels[off] = r;
+          pixels[off + 1] = g;
+          pixels[off + 2] = b;
+          pixels[off + 3] = 255;
+        }
+        ctx.putImageData(id, 0, 0);
+        this.dt = Date.now() - t0
+      })
     },
     drawAnimatedNoise(delay) {
       this.timeout = window.setTimeout(() => {
@@ -118,6 +124,21 @@ export default {
   },
   beforeUnmount() {
     this.stopAnimatedNoise()
+  },
+  watch: {
+    depthMap: {
+      immediate: true,
+      handler(newVal) {
+        if (newVal) {
+          let img = new Image()
+          img.src = newVal.src
+          img.onload = () => {
+            this.drawDebug(img)
+          }
+        }
+        this.drawNoise()
+      }
+    }
   }
 }
 </script>

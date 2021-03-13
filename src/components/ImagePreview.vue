@@ -1,24 +1,29 @@
 <template>
-  <div v-if="imageObject !== null">
-    <v-img :src="imageObject.src"
+  <div v-if="image">
+    <v-img :src="image.src"
       @load="onImageLoad" />
-    <h3>{{imageObject.height}} x {{imageObject.width}}</h3>
-    <h2>({{imageObject.size | prettyBytes}})</h2>
+    <h3>{{image.height}} x {{image.width}}</h3>
+    <h2 v-if="image.size">({{image.size | prettyBytes}})</h2>
   </div>
 </template>
 <script>
 export default {
   props: {
-    imageObject: {
-      type: Object,
-      default: null
+    getter: {
+      type: String,
+      required: true
     }
   },
-  data() {
-    return {
+  computed: {
+    image() {
+      return this.$store.getters[this.getter]
+    }
+  },
+  methods: {
+    onImageLoad(){
 
     }
-  },
+  }
 }
 </script>
 <style lang="css"

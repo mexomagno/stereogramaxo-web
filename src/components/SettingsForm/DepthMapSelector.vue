@@ -2,14 +2,15 @@
   <v-container class="fill-width">
     <v-row>
       <v-col cols="10">
-        <v-file-input :loading="loading" v-model="image"
+        <v-file-input ref="fileInput" :loading="loading" v-model="image"
           accept="image/*"
           label="Select depth map" />
+          <img :src="defaultDepthMap" alt="" style="display: none" @load="onDefaultLoaded">
       </v-col>
       <!-- img preview -->
       <v-col cols="2" class="text-center">
         <v-progress-circular v-if="loading" indeterminate size="100" width="10" color="primary" />
-        <image-preview :imageObject="$store.getters['image/depthmap']" />
+        <image-preview getter="image/depthMap" />
       </v-col>
     </v-row>
   </v-container>
@@ -32,23 +33,24 @@ export default {
   data() {
     return {
       image: null,
-      size: null,
-      loading: false
+      defaultDepthMap: require('@/assets/depthmaps/shark.png')
     }
   },
-  mounted() {
-    this.loadDefault()
+  computed: {
+    loading() {
+      return this.$store.state.image.loading
+    }
   },
   methods: {
-    loadDefault() {
-      this.imageSrc = require('@/assets/depthmaps/shark.png')
+    onDefaultLoaded(event) {
+      this.$store.dispatch('image/setDepthMap', event.srcElement)
     },
     processInput(){
       if (!this.image) {
         return
       }
       console.log("file name: ", this.image.name)
-      this.size = this.image.size
+      const fileSize = this.image.size
       
       var reader = new FileReader()
       let vm = this
@@ -57,6 +59,7 @@ export default {
         console.log("onload", e)
         var img = new Image()
         img.src = e.target.result
+        img.size = fileSize
         img.onload = () => {
           vm.$store.dispatch('image/setDepthMap', img)
           return true
@@ -66,15 +69,9 @@ export default {
     onImageLoad(event) {
       this.$emit('input', event)
     }, 
-    toGrayscale(img) {
-
-    },
-    createCanvas(){
-    }
   },
   watch: {
     image(newval) {
-      this.loading = true
       this.processInput()
     }
   }
