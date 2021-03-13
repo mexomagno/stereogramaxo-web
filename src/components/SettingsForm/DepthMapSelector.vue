@@ -6,31 +6,43 @@
           accept="image/*"
           label="Select depth map" />
       </v-col>
+      <!-- img preview -->
       <v-col cols="2" class="text-center">
         <v-progress-circular v-if="loading" indeterminate size="100" width="10" color="primary" />
-        <v-img v-else :src="imageSrc" />
-        <h3 v-if="height && width">{{height}} x {{width}}</h3>
-        <h2 v-if="size">({{size | prettyBytes}})</h2>
+        <image-preview :imageObject="$store.getters['image/depthmap']" />
       </v-col>
     </v-row>
   </v-container>
 </template>
 <script>
+import ImagePreview from '@/components/ImagePreview'
+
 export default {
-
-  name: 'ImageSelector',
-
+  components: { ImagePreview },
+  props: {
+    wallEyed: {
+      type: Boolean,
+      default: true
+    },
+    stripFraction: {
+      type: Number,
+      default: 8
+    },
+  },
   data() {
     return {
       image: null,
-      height: null,
-      width: null,
-      imageSrc: '', 
       size: null,
       loading: false
     }
   },
+  mounted() {
+    this.loadDefault()
+  },
   methods: {
+    loadDefault() {
+      this.imageSrc = require('@/assets/depthmaps/shark.png')
+    },
     processInput(){
       if (!this.image) {
         return
@@ -46,20 +58,23 @@ export default {
         var img = new Image()
         img.src = e.target.result
         img.onload = () => {
-          console.log("image load", img)
-          vm.height = img.height
-          vm.width = img.width
-          vm.imageSrc = img.src
-          vm.loading = false
+          vm.$store.dispatch('image/setDepthMap', img)
           return true
         }
       }
+    },
+    onImageLoad(event) {
+      this.$emit('input', event)
+    }, 
+    toGrayscale(img) {
+
+    },
+    createCanvas(){
     }
   },
   watch: {
     image(newval) {
       this.loading = true
-      console.log("Image was input")
       this.processInput()
     }
   }

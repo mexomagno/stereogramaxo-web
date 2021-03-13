@@ -1,5 +1,7 @@
 <template>
   <div class="text-center">
+    <v-card-title>debug canvas</v-card-title>
+    <canvas ref="debugCanvas" :width="width" :height="height"></canvas>
     <canvas ref="canvas" :width="width" :height="height"></canvas>
     <h4>Drew {{100000}} in {{dt}}ms</h4>
   </div>
@@ -11,6 +13,8 @@ const OVERSAMPLE = 1.8
 const SHIFT_RATIO = 0.3
 const LEFT_TO_RIGHT = false  // Defines how the pixels will be shifted (left to right or center to sides)
 const DOT_OVER_PATTERN_PROBABILITY = 0.3  // Defines how often dots are chosen over pattern on random pattern selection
+
+const DEFAULT_SIZE = {width: 800, height: 600}
 
 function hex2rgb(s){
   var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -24,22 +28,15 @@ function hex2rgb(s){
 export default {
   name: 'Stereogram',
   props: {
-    width: {
-      type: [String, Number],
-      default: 800
+    settings: {
+      type: Object,
+      required: true
     },
-    height: {
-      type: [String, Number],
-      default: 600
-    },
-    depthMap: {
-      type: String,
-      default: ''
-    }
   },
   data() {
     return {
       context: null,
+      debugCanvas: null,
       timeout: null,
       dt: 0
     }
@@ -47,12 +44,29 @@ export default {
   mounted() {
     this.$nextTick().then(() => {
       this.context = this.$refs.canvas.getContext('2d')
+      this.debugCanvas = this.$refs.debugCanvas.getContext('2d')
       // this.drawAnimatedNoise(10)
-      this.draw()
+      this.drawNoise()
+      this.drawDebug(this.depthMap)
     })
+  },
+  computed: {
+    depthMap() {
+      return this.$store.getters['image/depthMap']
+    },
+    width() {
+      return this.depthMap?.width ?? DEFAULT_SIZE.width
+    },
+    height() {
+      return this.depthMap?.height ?? DEFAULT_SIZE.height
+    },
   },
   methods: {
     // Testing
+    drawDebug(image) {
+      console.log("Draw debug image: ", image)
+      if (image) this.debugCanvas.drawImage(image)
+    },
     drawNoise(amount = 100000) {
       t0 = Date.now()
       this.context.clearRect(0, 0, this.width, this.height)

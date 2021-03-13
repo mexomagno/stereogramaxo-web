@@ -4,8 +4,8 @@
       <v-container fluid>
         <v-row justify="center">
           <v-col cols="10">
-            <settings-form />
-            <stereogram />
+            <settings-form v-model="settings" />
+            <stereogram :settings="settings" />
           </v-col>
         </v-row>
       </v-container>
@@ -25,7 +25,7 @@ export default {
   },
 
   data: () => ({
-    //
+    settings: {}
   }),
 };
 </script>
