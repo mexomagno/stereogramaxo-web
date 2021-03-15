@@ -2,7 +2,7 @@
   <div v-if="image">
     <v-img :src="image.src"
       @load="onImageLoad" />
-    <h3>{{image.height}} x {{image.width}}</h3>
+    <h3>{{image.width}} x {{image.height}}</h3>
     <h2 v-if="image.size">({{image.size | prettyBytes}})</h2>
   </div>
 </template>

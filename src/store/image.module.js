@@ -13,13 +13,15 @@ const actions = {
     commit('setLoading', false)
   }
 }
+
 const mutations = {
   setDepthMap(state, img) {
+    let {width, height, src, size} = img
     state.depthMap = {
-      height: img.height,
-      width: img.width,
-      src: img.src,
-      size: img.size
+      width,
+      height,
+      src,
+      size
     }
   },
   setLoading(state, loading) {
