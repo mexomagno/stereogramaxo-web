@@ -11,7 +11,12 @@ const actions = {
     commit('setLoading', true)
     commit('setDepthMap', img)
     commit('setLoading', false)
-  }
+  },
+  setPattern({ commit }, img) {
+    commit('setLoading', true)
+    commit('setPattern', img)
+    commit('setLoading', false)
+  },
 }
 
 const mutations = {
@@ -24,12 +29,22 @@ const mutations = {
       size
     }
   },
+  setPattern(state, img) {
+    let {width, height, src, size} = img
+    state.pattern = {
+      width,
+      height,
+      src,
+      size
+    }
+  },
   setLoading(state, loading) {
     state.loading = loading
   }
 }
 const getters = {
-  depthMap: state => state.depthMap
+  depthMap: state => state.depthMap,
+  pattern: state => state.pattern
 }
 
 

@@ -1,18 +1,30 @@
 <template>
   <div class="text-center">
     <v-card-title>debug canvas</v-card-title>
-    <canvas ref="debugCanvas"
-      id="debugCanvas"
+    <div v-if="loading" :style="`height: ${height}px; width: ${width}px`" class="d-flex justify-center align-center ml-auto mr-auto">
+      <v-progress-circular size="100" color="primary" width="20" indeterminate />
+    </div>
+    <h3>Pattern</h3>
+    <canvas ref="patternCanvas"
+      :width="patternWidth"
+      :height="patternHeight"></canvas>
+    <h3>Depthmap</h3>
+    <canvas v-show="!loading" ref="dmCanvas"
       :width="width"
       :height="height"></canvas>
-    <div v-if="debugCanvas">{{ debugCanvas.width }} x {{ debugCanvas.height }}</div>
-    <canvas ref="canvas"
+    <div v-if="dmCanvas">{{ dmCanvas.width }} x {{ dmCanvas.height }}</div>
+    <h3>Result</h3>
+    <canvas v-show="!loading" ref="canvas"
       :width="width"
       :height="height"></canvas>
+    <div v-if="canvas">{{ canvas.width }} x {{ canvas.height }}</div>
     <h4>Drew {{100000}} in {{dt}}ms</h4>
   </div>
 </template>
 <script>
+import filters from '@/utils/filters'
+import utils from '@/utils'
+
 const MAX_DIMENSION = 1500 // px
 const PATTERN_FRACTION = 8.0
 const OVERSAMPLE = 1.8
@@ -44,12 +56,16 @@ export default {
       context: null,
       timeout: null,
       dt: 0,
-      debugCanvas: null
+      dmCanvas: null,
+      patternCanvas: null,
+      canvas: null
     }
   },
   mounted() {
     this.$nextTick().then(() => {
-      this.debugCanvas = this.$refs.debugCanvas
+      this.dmCanvas = this.$refs.dmCanvas
+      this.patternCanvas = this.$refs.patternCanvas
+      this.canvas = this.$refs.canvas
       // this.drawAnimatedNoise(10)
     })
   },
@@ -57,12 +73,24 @@ export default {
     depthMap() {
       return this.$store.getters['image/depthMap']
     },
+    pattern() {
+      return this.$store.getters['image/pattern']
+    },
     width() {
       return this.depthMap?.width ?? DEFAULT_SIZE.width
     },
     height() {
       return this.depthMap?.height ?? DEFAULT_SIZE.height
     },
+    patternWidth() {
+      return this.pattern?.width ?? 0
+    },
+    patternHeight() {
+      return this.pattern?.height ?? 0
+    },
+    loading(){
+      return this.$store.state.image.loading
+    }
   },
   methods: {
     // Testing
@@ -77,48 +105,68 @@ export default {
     onDebugReady() {
       console.log("debug ready")
     },
-    drawNoise(amount = 100000) {
+    // drawNoise(amount = 100000) {
+    //   this.$nextTick().then(() => {
+    //     this.$refs.canvas.width = this.$refs.debugCanvas.width
+    //     this.$refs.canvas.height = this.$refs.debugCanvas.height
+
+    //     const ctx = this.$refs.canvas.getContext('2d')
+    //     t0 = Date.now()
+        
+    //     this.dt = Date.now() - t0
+    //   })
+    // },
+    // drawAnimatedNoise(delay) {
+    //   this.timeout = window.setTimeout(() => {
+    //     this.drawNoise()
+    //     this.drawAnimatedNoise(delay)
+    //   }, delay)
+    // },
+    // stopAnimatedNoise() {
+    //   if (this.timeout) {
+    //     window.clearTimeout(this.timeout)
+    //     this.timeout = null
+    //   }
+    // },
+    // Actual workings
+    render() {
       this.$nextTick().then(() => {
+        // flush pattern to its canvas
+        const pCtx = this.$refs.patternCanvas.getContext('2d')
+        const pImg = new Image()
+        pImg.src = this.pattern.src
+        pCtx.drawImage(pImg, 0, 0, pImg.width, pImg.height)
+
+
+        // Flush depthmap to its canvas
+        // get depthmap
+        const MAX_WIDTH = 400,
+        MAX_HEIGHT = 300
+        const dmSize = utils.constrain({width: this.depthMap.width, height: this.depthMap.height}, {MAX_WIDTH, MAX_HEIGHT})
+        this.$refs.dmCanvas.width = dmSize.width
+        this.$refs.dmCanvas.height = dmSize.height
+        const dmCtx = this.$refs.dmCanvas.getContext('2d')
+        const dmImg = new Image()
+        dmImg.src = this.depthMap.src
+
+        dmCtx.drawImage(dmImg, 0, 0, dmSize.width, dmSize.height)
+        filters.grayscale(dmCtx)
+        filters.blur(dmCtx, this.$store.state.settings.blurRadius)
+
+        this.canvas = this.$refs.canvas
+        this.canvas.width = Math.round(dmCtx.canvas.width * (1+1/this.$store.state.settings.stripFraction))
+        this.canvas.height = dmCtx.canvas.height
+        
         const ctx = this.$refs.canvas.getContext('2d')
 
-        t0 = Date.now()
-        ctx.clearRect(0, 0, this.width, this.height)
+        // create background from pattern
+        // const patternWidth = Math.round(dmCtx.canvas.width * 1/this.$store.state.settings.stripFraction)
+        // const patternHeight = pattern.height
+        // filters.tesselate(patternCtx, ctx, patternWidth)
 
-        var id = ctx.getImageData(0, 0, this.width, this.height);
-        var pixels = id.data;
 
-        var t0 = new Date().getTime();
-
-        for (var i = 0; i < amount; ++i) {
-          var x = Math.floor(Math.random() * this.width);
-          var y = Math.floor(Math.random() * this.height);
-          var r = Math.floor(Math.random() * 256);
-          var g = Math.floor(Math.random() * 256);
-          var b = Math.floor(Math.random() * 256);
-          var off = (y * id.width + x) * 4;
-          pixels[off] = r;
-          pixels[off + 1] = g;
-          pixels[off + 2] = b;
-          pixels[off + 3] = 255;
-        }
-        ctx.putImageData(id, 0, 0);
-        this.dt = Date.now() - t0
+        filters.noise(ctx, 10000)
       })
-    },
-    drawAnimatedNoise(delay) {
-      this.timeout = window.setTimeout(() => {
-        this.drawNoise()
-        this.drawAnimatedNoise(delay)
-      }, delay)
-    },
-    stopAnimatedNoise() {
-      if (this.timeout) {
-        window.clearTimeout(this.timeout)
-        this.timeout = null
-      }
-    },
-    // Actual workings
-    draw() {
       // Create blank canvas
       const pattern_w = parseInt(10)
       // Create pattern
@@ -128,146 +176,58 @@ export default {
       // Start shifting pixels
 
     },
-    drawPattern() {},
-    toGrayscale(ctx) {
-      let imgData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
-      let pixels = imgData.data;
-      for (var i = 0; i < pixels.length; i += 4) {
-        let lightness = parseInt((pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3);
+    // refreshDepthMap() {
+    //   if (!this.depthMap) return
+    //   this.$store.commit('image/setLoading', true)
+    //   // Get new canvas
+    //   const { width, height, src } = this.depthMap
 
-        pixels[i] = lightness;
-        pixels[i + 1] = lightness;
-        pixels[i + 2] = lightness;
-      }
-      ctx.putImageData(imgData, 0, 0);
-      console.log("Converted to grayscale")
-    },
-    blur(ctx, amount = 10 /*px*/ ) {
-      console.log("Blurring", amount, "px")
+    //   const MAX_WIDTH = 400,
+    //     MAX_HEIGHT = 300
 
-      var blur = amount; 
-      var blurRange = blur * 3;
-      var gaussparam = new Array;
+    //   const newSize = utils.constrain({width, height}, {MAX_WIDTH, MAX_HEIGHT})
 
-      for (var i = 0; i <= blurRange; i++) {
-        gaussparam[i] = Math.exp(-i * i / (2 * blur * blur));
-      }
-
-      const switchXY = (width, height, data, clockwiseFlg) => {
-        // 行列入れ替え
-        var newData = new Array;
-        if (clockwiseFlg) {
-          for (var i = 0, len = width * height; i < len; i++) {
-            var k = (i % width) * height + ((i / width) | 0);
-            newData[k * 4] = data[i * 4];
-            newData[k * 4 + 1] = data[i * 4 + 1];
-            newData[k * 4 + 2] = data[i * 4 + 2];
-            newData[k * 4 + 3] = data[i * 4 + 3];
-          }
-        } else {
-          for (var i = 0, len = width * height; i < len; i++) {
-            var k = (i % width) * height + ((i / width) | 0);
-            newData[i * 4] = data[k * 4];
-            newData[i * 4 + 1] = data[k * 4 + 1];
-            newData[i * 4 + 2] = data[k * 4 + 2];
-            newData[i * 4 + 3] = data[k * 4 + 3];
-          }
-        }
-        return newData;
-      }
-      const blurX = (width, height, dataOrigine) => {
-        var canvasDraw = document.createElement('canvas');
-        canvasDraw.width = width;
-        canvasDraw.height = height;
-        canvasDraw.crossOrigin = 'anonymous';
-        var ctxDraw = canvasDraw.getContext('2d');
-        var imageDataDraw = ctxDraw.getImageData(0, 0, width, height);
-        var dataDraw = imageDataDraw.data;
-        var ox, oy, gauss, count, R, G, B, A;
-        for (var i = 0, len = width * height; i < len; i++) {
-          gauss = count = R = G = B = A = 0;
-          ox = i % width;
-          oy = (i / width) | 0; // = Math.floor(i / width);          
-          for (var x = -1 * blurRange; x <= blurRange; x++) {
-            var tx = ox + x;
-            if ((0 <= tx) && (tx < width)) {
-              gauss = gaussparam[x < 0 ? -x : x]; // = [Math.abs(x)]
-              var k = i + x;
-              R += dataOrigine[k * 4 + 0] * gauss;
-              G += dataOrigine[k * 4 + 1] * gauss;
-              B += dataOrigine[k * 4 + 2] * gauss;
-              A += dataOrigine[k * 4 + 3] * gauss;
-              count += gauss;
-            }
-          }
-          dataDraw[i * 4 + 0] = (R / count) | 0;
-          dataDraw[i * 4 + 1] = (G / count) | 0;
-          dataDraw[i * 4 + 2] = (B / count) | 0;
-          dataDraw[i * 4 + 3] = (A / count) | 0;
-        }
-        return imageDataDraw
-      }
-
-      // setting
-      var width = ctx.canvas.width;
-      var height = ctx.canvas.height;
-      var imageData = ctx.getImageData(0, 0, width, height);
-      var newData, newImageData;
-      // blur y
-      newData = switchXY(width, height, imageData.data, true);
-      newImageData = blurX(width, height, newData);
-      // blur x
-      newData = switchXY(width, height, newImageData.data, false);
-      newImageData = blurX(width, height, newData);
-      // draw
-      ctx.putImageData(newImageData, 0, 0);
-    }
+    //   this.dmCanvas = this.$refs.dmCanvas
+    //   this.dmCanvas.width = newSize.width
+    //   this.dmCanvas.height = newSize.height
+    //   const newImg = new Image()
+    //   newImg.onload = () => {
+    //     const ctx = this.dmCanvas.getContext('2d')
+    //     ctx.drawImage(newImg, 0, 0, newSize.width, newSize.height)
+    //     // Convert to grayscale
+    //     filters.grayscale(ctx)
+    //     filters.blur(ctx, this.$store.state.settings.blurRadius)
+    //   }
+    //   newImg.src = src
+    //   this.$store.commit('image/setLoading', false)
+    // }
   },
   beforeUnmount() {
     this.stopAnimatedNoise()
   },
   watch: {
-    depthMap: {
-      immediate: true,
-      deep: true,
+    // depthMap: {
+    //   immediate: true,
+    //   deep: true,
+    //   handler(newVal) {
+    //     this.render()
+    //   }
+    // },
+    '$store.state.image.depthMap': {
       handler(newVal) {
-        if (newVal) {
-          this.$nextTick().then(() => {
-            // Get new canvas
-            const { width, height, src } = newVal
-
-            const MAX_WIDTH = 400,
-              MAX_HEIGHT = 300
-
-            const ratio = width / height
-            const maxRatio = MAX_WIDTH / MAX_HEIGHT
-            // Constrain size
-
-            let canvasWidth = width
-            let canvasHeight = height
-            if (width > MAX_WIDTH || height > MAX_HEIGHT) {
-              console.log(`Constrain size to ${MAX_WIDTH} x ${MAX_HEIGHT}`)
-              canvasWidth = ratio > maxRatio ? MAX_WIDTH : ratio * MAX_HEIGHT
-              canvasHeight = ratio > maxRatio ? MAX_WIDTH / ratio : MAX_HEIGHT
-            }
-
-            this.debugCanvas = this.$refs.debugCanvas
-            this.debugCanvas.width = canvasWidth
-            this.debugCanvas.height = canvasHeight
-            const newImg = new Image()
-            newImg.onload = () => {
-              const ctx = this.debugCanvas.getContext('2d')
-              ctx.drawImage(newImg, 0, 0, canvasWidth, canvasHeight)
-              // Convert to grayscale
-              this.toGrayscale(ctx)
-              this.blur(ctx, 10)
-
-            }
-            newImg.src = src
-          })
-        }
-        this.drawNoise()
+        this.render()
       }
+    },
+    '$store.state.image.pattern': {
+      handler(newVal) {
+        this.render()
+      }
+    },
+    '$store.state.settings': {
+      handler(newVal) {
+        this.render()
+      },
+      deep: true
     }
   }
 }
