@@ -113,7 +113,42 @@ export default {
     // draw
     ctx.putImageData(newImageData, 0, 0);
   },
-  tesselate(patternctx, ctx) {
+  compressGrays(ctx, lowerCut = 0.8, upperCut = 1) {
+    let imageData  = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height)
+    // Determine min and max gray value
+    let pixels = imageData.data
+    const minGray = pixels.reduce((a, b) => a < b ? a : b, pixels[0])
+    const maxGray = pixels.reduce((a, b) => a > b ? a : b, pixels[0])
+
+    const newMin = Math.round(255*lowerCut)
+    const newMax = Math.round(255*upperCut)
+    pixels = pixels.map(gray => gray * (newMax - newMin)/(maxGray - minGray) + newMin)
+    ctx.putImageData(imageData, 0, 0)
+    // # Transform to new scale
+    // old_min = min_gray["value"]
+    // old_max = max_gray["value"]
+    // old_interval = old_max - old_min
+    // new_min = 0
+    // new_max = int(255.0 * gray_height)
+    // new_interval = new_max - new_min
+
+    // conv_factor = float(new_interval)/float(old_interval)
+
+    // pixels = img_object.load()
+    // for x in range(img_object.size[0]):
+    //     for y in range(img_object.size[1]):
+    //         pixels[x, y] = int((pixels[x, y] * conv_factor)) + new_min
+    // return img_object
+  },
+  tesselate(ctx, img, width) {
+    const height = img.height / img.width * width
+    for (var px = -width/2; px < ctx.canvas.width; px += width) {
+      for (var py = -height/2; py < ctx.canvas.height; py += height) {
+        ctx.drawImage(img, px, py, width, height)
+      }
+    }
+  },
+  applyDepthMap(ctx, dmCtx) {
 
   }
 }

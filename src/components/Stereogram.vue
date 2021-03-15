@@ -130,18 +130,19 @@ export default {
     // },
     // Actual workings
     render() {
+      if (!this.depthMap || !this.pattern) return
       this.$nextTick().then(() => {
         // flush pattern to its canvas
         const pCtx = this.$refs.patternCanvas.getContext('2d')
         const pImg = new Image()
-        pImg.src = this.pattern.src
+        pImg.src = this.$store.state.image.pattern.src
         pCtx.drawImage(pImg, 0, 0, pImg.width, pImg.height)
 
 
         // Flush depthmap to its canvas
         // get depthmap
-        const MAX_WIDTH = 400,
-        MAX_HEIGHT = 300
+        const MAX_WIDTH = 800,
+        MAX_HEIGHT = 600
         const dmSize = utils.constrain({width: this.depthMap.width, height: this.depthMap.height}, {MAX_WIDTH, MAX_HEIGHT})
         this.$refs.dmCanvas.width = dmSize.width
         this.$refs.dmCanvas.height = dmSize.height
@@ -152,6 +153,7 @@ export default {
         dmCtx.drawImage(dmImg, 0, 0, dmSize.width, dmSize.height)
         filters.grayscale(dmCtx)
         filters.blur(dmCtx, this.$store.state.settings.blurRadius)
+        filters.compressGrays(dmCtx, 0.8, 1.0)
 
         this.canvas = this.$refs.canvas
         this.canvas.width = Math.round(dmCtx.canvas.width * (1+1/this.$store.state.settings.stripFraction))
@@ -160,12 +162,12 @@ export default {
         const ctx = this.$refs.canvas.getContext('2d')
 
         // create background from pattern
-        // const patternWidth = Math.round(dmCtx.canvas.width * 1/this.$store.state.settings.stripFraction)
+        const patternWidth = Math.round(dmCtx.canvas.width * 1/this.$store.state.settings.stripFraction)
         // const patternHeight = pattern.height
-        // filters.tesselate(patternCtx, ctx, patternWidth)
-
-
         filters.noise(ctx, 10000)
+        filters.tesselate(ctx, pImg, patternWidth)
+        filters.applyDepthMap(ctx, dmCtx)
+
       })
       // Create blank canvas
       const pattern_w = parseInt(10)
@@ -203,7 +205,7 @@ export default {
     // }
   },
   beforeUnmount() {
-    this.stopAnimatedNoise()
+    // this.stopAnimatedNoise()
   },
   watch: {
     // depthMap: {
@@ -227,7 +229,8 @@ export default {
       handler(newVal) {
         this.render()
       },
-      deep: true
+      deep: true,
+      immediate: true,
     }
   }
 }
